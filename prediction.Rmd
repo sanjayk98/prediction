@@ -1,0 +1,104 @@
+---
+title: "Prediction Assignment"
+author: "Sanjay Kumar"
+date: "28-Dec-2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.
+
+
+## Loading Data and Cleaning
+
+You can also embed plots, for example:
+
+```{r, echo=TRUE,cache=TRUE}
+#download files
+ if (!file.exists("./pml-training.csv")){
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",destfile="./pml-training.csv")
+ }
+if (!file.exists("./pml-testing.csv")){
+download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",destfile="./pml-testing.csv")
+}
+#Load data
+training<-read.csv("pml-training.csv")
+testing<-read.csv("pml-testing.csv")
+dim(training)
+dim(testing)
+#Remove near zero variance column
+library(caret)
+training1<-training[, -nearZeroVar(training)]
+
+#mostly null
+
+training<-training1[, -which(colMeans(is.na(training1)) > 0.5)]
+
+#remmove first 7 columns which are username or timestamp
+ training<-training[,-c(1:7)]
+
+
+#testing<-testing1[complete.cases(testing1), ]
+dim(training)
+#remove null row
+training1<-training[complete.cases(training), ]
+dim(training1)
+
+```
+## Data partition 
+
+
+```{r, echo=TRUE}
+#create data partition for training and test
+library(caret)
+dpart<-createDataPartition(training1$classe,p=0.7,list=FALSE)
+trainSet<-training[dpart,]
+testSet<-training[-dpart,]
+dim(trainSet)
+dim(testSet)
+
+```
+## Prediction Model
+The model run time exceeds 30 min. Please be patient
+```{r, echo=TRUE}
+set.seed(1234)
+#use 10 fold cross validation
+fitControl <- trainControl(method = "cv",number = 10)
+#use random forest method
+rf<-train(classe~.,method="rf",trControl = fitControl,data=trainSet,verbose = FALSE)
+#gradient boost
+gbm<-train(classe~.,method="gbm",trControl = fitControl,data=trainSet,verbose = FALSE)
+#linear discriminator
+lda<-train(classe~.,method="lda",trControl = fitControl,data=trainSet,verbose = FALSE)
+
+predrf<-predict(rf,testSet)
+predgbm<-predict(gbm,testSet)
+predlda<-predict(lda,testSet)
+
+confusionMatrix(predrf,testSet$classe)
+confusionMatrix(predgbm,testSet$classe)
+confusionMatrix(predlda,testSet$classe)
+
+#pred<-predict(rf,testSet$classe)
+
+```
+## Using model to predict class
+
+```{r, echo=TRUE}
+# remove unnecessary columns from testing
+#keep<-names(trainSet)
+#testing1<-testing[,(names(testing) %in% keep)]
+#dim(testing1)
+set.seed(1234)
+values<-predict(rf,testing)
+
+```
+## Conclusion
+The final answer is given below which has 99.56% accuracy using random forest method
+```{r, echo=FALSE}
+values
+```
